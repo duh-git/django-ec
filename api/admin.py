@@ -8,13 +8,13 @@ from django.utils.http import urlencode
 from .utils import generate_order_pdf
 
 from .models import (
+    Product,
+    ProductImage,
     Category,
     Brand,
     Tag,
-    Product,
-    ProductImage,
-    Review,
     Profile,
+    Review,
     Wishlist,
     WishlistItem,
     Cart,
@@ -35,6 +35,12 @@ class ProductImageInline(admin.TabularInline):
         if obj.image:
             return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
         return "-"
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = "Профиль"
 
 
 class ReviewInline(admin.TabularInline):
@@ -121,32 +127,6 @@ class StockFilter(admin.SimpleListFilter):
 
 
 # ModelAdmin классы
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ["name", "parent", "products_count"]
-    list_filter = ["parent"]
-    search_fields = ["name"]
-    prepopulated_fields = {"name": ()}
-
-    @admin.display(description="Количество товаров")
-    def products_count(self, obj):
-        count = obj.products.count()
-        url = reverse("admin:api_product_changelist") + "?" + urlencode({"category__id": f"{obj.id}"})
-        return format_html(f'<a href="{url}">{count} товаров</a>')
-
-
-@admin.register(Brand)
-class BrandAdmin(admin.ModelAdmin):
-    list_display = ["name", "products_count"]
-    search_fields = ["name", "description"]
-
-    @admin.display(description="Количество товаров")
-    def products_count(self, obj):
-        count = obj.products.count()
-        url = reverse("admin:api_product_changelist") + "?" + urlencode({"brand__id": f"{obj.id}"})
-        return format_html(f'<a href="{url}">{count} товаров</a>')
-
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
@@ -203,6 +183,32 @@ class ProductImageAdmin(admin.ModelAdmin):
         return "-"
 
 
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ["name", "parent", "products_count"]
+    list_filter = ["parent"]
+    search_fields = ["name"]
+    prepopulated_fields = {"name": ()}
+
+    @admin.display(description="Количество товаров")
+    def products_count(self, obj):
+        count = obj.products.count()
+        url = reverse("admin:api_product_changelist") + "?" + urlencode({"category__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} товаров</a>')
+
+
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ["name", "products_count"]
+    search_fields = ["name", "description"]
+
+    @admin.display(description="Количество товаров")
+    def products_count(self, obj):
+        count = obj.products.count()
+        url = reverse("admin:api_product_changelist") + "?" + urlencode({"brand__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} товаров</a>')
+
+
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ["name", "color", "color_display", "products_count", "description_preview"]
@@ -226,6 +232,20 @@ class TagAdmin(admin.ModelAdmin):
     def description_preview(self, obj):
         if obj.description:
             return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
+        return "-"
+
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ["user", "phone_number", "profile_picture_preview"]
+    search_fields = ["user__username", "user__email", "phone_number"]
+
+    @admin.display(description="Аватар")
+    def profile_picture_preview(self, obj):
+        if obj.profile_picture:
+            return format_html(
+                f'<img src="{obj.profile_picture.url}" width="50" height="50" style="object-fit: cover; border-radius: 50%;" />'
+            )
         return "-"
 
 
@@ -260,20 +280,6 @@ class ReviewAdmin(admin.ModelAdmin):
     @admin.display(description="Ответ", boolean=True)
     def has_admin_response(self, obj):
         return bool(obj.admin_response)
-
-
-@admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
-    list_display = ["user", "phone_number", "profile_picture_preview"]
-    search_fields = ["user__username", "user__email", "phone_number"]
-
-    @admin.display(description="Аватар")
-    def profile_picture_preview(self, obj):
-        if obj.profile_picture:
-            return format_html(
-                f'<img src="{obj.profile_picture.url}" width="50" height="50" style="object-fit: cover; border-radius: 50%;" />'
-            )
-        return "-"
 
 
 @admin.register(Wishlist)
@@ -405,13 +411,7 @@ class OrderItemAdmin(admin.ModelAdmin):
     total_price_display.short_description = "Общая стоимость"
 
 
-# Интеграция Profile с User в админке
-class ProfileInline(admin.StackedInline):
-    model = Profile
-    can_delete = False
-    verbose_name_plural = "Профиль"
-
-
+# Модификация базового представления
 class UserAdmin(BaseUserAdmin):
     inlines = [ProfileInline]
     list_display = ["username", "email", "first_name", "last_name", "is_staff", "profile_info"]
@@ -426,7 +426,6 @@ class UserAdmin(BaseUserAdmin):
     profile_info.short_description = "Контактная информация"
 
 
-# Перерегистрируем User с кастомным админом
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
