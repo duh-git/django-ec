@@ -1,5 +1,6 @@
-# management/commands/populate_fake_data.py
 from django.core.management.base import BaseCommand
+from django.utils.text import slugify
+from transliterate import translit
 from django.contrib.auth.models import User
 from django.db import transaction
 from faker import Faker
@@ -22,6 +23,10 @@ from api.models import (
     Order,
     OrderItem,
 )
+
+def slugify_ru(text):
+    text_translit = translit(text, "ru", reversed=True)
+    return slugify(text_translit)
 
 
 class Command(BaseCommand):
@@ -80,13 +85,30 @@ class Command(BaseCommand):
         main_categories = ["Электроника", "Одежда", "Книги", "Дом и сад", "Спорт", "Красота", "Игрушки", "Автотовары"]
 
         for name in main_categories:
-            category = Category.objects.create(name=name)
+            slug = slugify_ru(name)
+            # Убедимся, что slug уникален
+            counter = 1
+            original_slug = slug
+            while Category.objects.filter(slug=slug).exists():
+                slug = f"{original_slug}-{counter}"
+                counter += 1
+
+            category = Category.objects.create(name=name, slug=slug)
             categories.append(category)
 
             # Создаем подкатегории для каждой основной категории
             for _ in range(random.randint(2, 5)):
                 subcategory_name = fake.word().capitalize() + " " + fake.word().capitalize()
-                subcategory = Category.objects.create(name=subcategory_name, parent=category)
+                subcategory_slug = slugify_ru(subcategory_name)
+
+                # Убедимся, что slug уникален
+                counter = 1
+                original_sub_slug = subcategory_slug
+                while Category.objects.filter(slug=subcategory_slug).exists():
+                    subcategory_slug = f"{original_sub_slug}-{counter}"
+                    counter += 1
+
+                subcategory = Category.objects.create(name=subcategory_name, slug=subcategory_slug, parent=category)
                 categories.append(subcategory)
 
         self.stdout.write(self.style.SUCCESS(f"Создано {len(categories)} категорий"))
@@ -104,7 +126,17 @@ class Command(BaseCommand):
                     brand_names.add(brand_name)
                     break
 
-            brand = Brand.objects.create(name=brand_name, description=fake.text(200) if random.random() > 0.3 else None)
+            slug = slugify_ru(brand_name)
+            # Убедимся, что slug уникален
+            counter = 1
+            original_slug = slug
+            while Brand.objects.filter(slug=slug).exists():
+                slug = f"{original_slug}-{counter}"
+                counter += 1
+
+            brand = Brand.objects.create(
+                name=brand_name, slug=slug, description=fake.text(200) if random.random() > 0.3 else None
+            )
             brands.append(brand)
 
         self.stdout.write(self.style.SUCCESS(f"Создано {len(brands)} брендов"))
@@ -182,8 +214,19 @@ class Command(BaseCommand):
         products = []
 
         for i in range(product_count):
+            product_name = fake.catch_phrase()
+            slug = slugify_ru(product_name)
+
+            # Убедимся, что slug уникален
+            counter = 1
+            original_slug = slug
+            while Product.objects.filter(slug=slug).exists():
+                slug = f"{original_slug}-{counter}"
+                counter += 1
+
             product = Product.objects.create(
-                name=fake.catch_phrase(),
+                name=product_name,
+                slug=slug,
                 description=fake.text(500) if random.random() > 0.2 else None,
                 category=random.choice(categories),
                 brand=random.choice(brands),

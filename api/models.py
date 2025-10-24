@@ -5,13 +5,19 @@ from django.db.models import Avg
 from django.utils import timezone
 from uuid import uuid4
 from django.core.exceptions import ValidationError
+from django.urls import reverse
+from .managers import *
 
 
 class Category(models.Model):
     name = models.CharField(max_length=80, unique=True, verbose_name="Категория")
+    slug = models.SlugField(max_length=80, unique=True, verbose_name="URL")
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, blank=True, null=True, related_name="children", verbose_name="Подкатегория"
     )
+
+    def get_absolute_url(self):
+        return reverse("products_by_category", kwargs={"category_slug": self.slug})
 
     class Meta:
         verbose_name = "Категория"
@@ -23,7 +29,11 @@ class Category(models.Model):
 
 class Brand(models.Model):
     name = models.CharField(max_length=80, unique=True, verbose_name="Бренд")
+    slug = models.SlugField(max_length=80, unique=True, verbose_name="URL")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
+
+    def get_absolute_url(self):
+        return reverse("products_by_brand", kwargs={"brand_slug": self.slug})
 
     class Meta:
         verbose_name = "Бренд"
@@ -48,6 +58,7 @@ class Tag(models.Model):
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name="Продукт")
+    slug = models.SlugField(max_length=255, unique=True, verbose_name="URL")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", verbose_name="Категория")
     brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name="products", verbose_name="Бренд")
@@ -64,6 +75,8 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
 
+    objects = ProductManager()
+
     @property
     def average_rating(self):
         return self.reviews.aggregate(Avg("rating"))["rating__avg"] or 0
@@ -71,6 +84,9 @@ class Product(models.Model):
     @property
     def review_count(self):
         return self.reviews.count()
+
+    def get_absolute_url(self):
+        return reverse("product_detail", kwargs={"product_slug": self.slug})
 
     class Meta:
         verbose_name = "Продукт"
@@ -115,7 +131,7 @@ class ProductTagRelationship(models.Model):
         help_text="Насколько сильно тег связан с продуктом (1-10)",
     )
     is_auto_generated = models.BooleanField(default=False, verbose_name="Автоматически сгенерирован")
-    
+
     added_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата добавления")
 
     class Meta:
@@ -147,6 +163,11 @@ class Review(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    objects = ReviewManager()
+
+    def get_absolute_url(self):
+        return reverse("product_detail", kwargs={"product_slug": self.product.slug}) + "#reviews"
 
     class Meta:
         verbose_name = "Отзыв"
@@ -264,6 +285,8 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
 
+    objects = OrderManager()
+
     def update_total_amount(self):
         """Пересчитывает общую сумму заказа"""
         self.total_amount = sum(item.total_price for item in self.items.all())
@@ -274,6 +297,9 @@ class Order(models.Model):
         if not self.order_number:
             self.order_number = f"ORD-{timezone.now().strftime('%Y%m%d')}-{str(uuid4())[:8]}"
         super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse("order_detail", kwargs={"order_number": self.order_number})
 
     class Meta:
         verbose_name = "Заказ"

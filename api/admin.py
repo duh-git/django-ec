@@ -144,6 +144,7 @@ class StockFilter(admin.SimpleListFilter):
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
         "name",
+        "slug",
         "category",
         "brand",
         "price",
@@ -164,7 +165,7 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline]
     fieldsets = (
         # ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
-        ("Основная информация", {"fields": ("name", "description", "category", "brand")}),
+        ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
         ("Отзывы", {"fields": ("average_rating", "review_count")}),
@@ -199,7 +200,7 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ["name", "parent", "products_count"]
+    list_display = ["name", "slug", "parent", "products_count"]
     list_filter = ["parent"]
     search_fields = ["name"]
     prepopulated_fields = {"name": ()}
@@ -213,7 +214,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
-    list_display = ["name", "products_count"]
+    list_display = ["name", "slug", "products_count"]
     search_fields = ["name", "description"]
 
     @admin.display(description="Количество товаров")
