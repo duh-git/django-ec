@@ -24,6 +24,7 @@ from api.models import (
     OrderItem,
 )
 
+
 def slugify_ru(text):
     text_translit = translit(text, "ru", reversed=True)
     return slugify(text_translit)

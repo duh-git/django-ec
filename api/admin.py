@@ -10,6 +10,7 @@ from .utils import generate_order_pdf
 from .models import (
     Product,
     ProductImage,
+    ProductFile,
     Category,
     Brand,
     Tag,
@@ -165,8 +166,9 @@ class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline]
     fieldsets = (
         # ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
-        ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand")}),
+        ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand", "productfile")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
+        # ("Документы", {"fields": ("")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
         ("Отзывы", {"fields": ("average_rating", "review_count")}),
         ("Даты", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
@@ -198,6 +200,14 @@ class ProductImageAdmin(admin.ModelAdmin):
         return "-"
 
 
+@admin.register(ProductFile)
+class ProductFileAdmin(admin.ModelAdmin):
+    list_display = ["product", "name", "file_type", "downloads_count", "size", "updated_at"]
+    list_editable = ["name", "file_type"]
+    list_filter = ["product__category", "file_type"]
+    search_fields = ["product__name", "product"]
+
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ["name", "slug", "parent", "products_count"]
@@ -214,7 +224,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
-    list_display = ["name", "slug", "products_count"]
+    list_display = ["name", "slug", "official_website", "products_count"]
     search_fields = ["name", "description"]
 
     @admin.display(description="Количество товаров")

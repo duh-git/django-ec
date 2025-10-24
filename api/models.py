@@ -30,6 +30,7 @@ class Category(models.Model):
 class Brand(models.Model):
     name = models.CharField(max_length=80, unique=True, verbose_name="Бренд")
     slug = models.SlugField(max_length=80, unique=True, verbose_name="URL")
+    official_website = models.URLField(blank=True, null=True, verbose_name="Официальный сайт")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
 
     def get_absolute_url(self):
@@ -116,6 +117,40 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Изображение {self.product} - {self.order}{f'(основное)' if self.is_primary else ''}"
+
+
+class ProductFile(models.Model):
+    FILE_TYPES = (
+        ("manual", "Инструкция"),
+        ("certificate", "Сертификат"),
+        ("specification", "Технические характеристики"),
+        ("software", "ПО/Драйверы"),
+        ("other", "Другое"),
+    )
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="files", verbose_name="Продукт")
+    file = models.FileField(upload_to="product_files/%Y/%m/%d/", verbose_name="Файл")
+    file_type = models.CharField(max_length=20, choices=FILE_TYPES, default="other", verbose_name="Тип файла")
+    name = models.CharField(max_length=255, verbose_name="Название файла")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание")
+    size = models.PositiveIntegerField(editable=False, verbose_name="Размер файла (байт)")
+    downloads_count = models.PositiveIntegerField(default=0, verbose_name="Количество скачиваний")
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            self.size = self.file.size
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Файл продукта"
+        verbose_name_plural = "Файлы продуктов"
+        ordering = ["file_type", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.product.name})"
 
 
 class ProductTagRelationship(models.Model):
@@ -242,7 +277,7 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items", verbose_name="Корзина")
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
-    quantity = models.PositiveIntegerField(default=1, verbose_name="Количество")  # TO-DO: Минимальное количество > 0
+    quantity = models.PositiveIntegerField(default=1, verbose_name="Количество")
 
     @property
     def total_price(self):
