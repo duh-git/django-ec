@@ -136,7 +136,10 @@ class Command(BaseCommand):
                 counter += 1
 
             brand = Brand.objects.create(
-                name=brand_name, slug=slug, description=fake.text(200) if random.random() > 0.3 else None
+                name=brand_name,
+                slug=slug,
+                official_website=fake.url(),
+                description=fake.text(200) if random.random() > 0.3 else None,
             )
             brands.append(brand)
 
