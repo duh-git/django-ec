@@ -5,6 +5,7 @@ from django.utils.html import format_html
 from django.db.models import Avg, Count
 from django.urls import reverse
 from django.utils.http import urlencode
+from .utils import generate_order_pdf
 
 from .models import (
     Category,
@@ -28,12 +29,11 @@ class ProductImageInline(admin.TabularInline):
     extra = 1
     readonly_fields = ["image_preview"]
 
+    @admin.display(description="Превью")
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
         return "-"
-
-    image_preview.short_description = "Превью"
 
 
 class ReviewInline(admin.TabularInline):
@@ -49,10 +49,9 @@ class OrderItemInline(admin.TabularInline):
     readonly_fields = ["price", "total_price"]
     can_delete = False
 
+    @admin.display(description="Общая стоимость")
     def total_price(self, obj):
         return f"{obj.total_price} ₽"
-
-    total_price.short_description = "Общая стоимость"
 
 
 class CartItemInline(admin.TabularInline):
@@ -60,10 +59,9 @@ class CartItemInline(admin.TabularInline):
     extra = 0
     readonly_fields = ["total_price"]
 
+    @admin.display(description="Общая стоимость")
     def total_price(self, obj):
         return f"{obj.total_price} ₽"
-
-    total_price.short_description = "Общая стоимость"
 
 
 class WishlistItemInline(admin.TabularInline):
@@ -141,12 +139,11 @@ class BrandAdmin(admin.ModelAdmin):
     list_display = ["name", "products_count"]
     search_fields = ["name", "description"]
 
+    @admin.display(description="Количество товаров")
     def products_count(self, obj):
         count = obj.products.count()
         # url = reverse("admin:app_product_changelist") + "?" + urlencode({"brand__id": f"{obj.id}"})
         return format_html(f'<a href="">{count} товаров</a>')  # TO-DO: reverse
-
-    products_count.short_description = "Количество товаров"
 
 
 @admin.register(Product)
@@ -197,12 +194,11 @@ class ProductImageAdmin(admin.ModelAdmin):
     list_filter = ["is_primary", "product__category"]
     search_fields = ["product__name"]
 
+    @admin.display(description="Изображение")
     def image_preview(self, obj):
         if obj.image:
             return format_html(f'<img src="{obj.image.url}" width="50" height="50" style="object-fit: cover;" />')
         return "-"
-
-    image_preview.short_description = "Изображение"
 
 
 @admin.register(Review)
@@ -223,23 +219,19 @@ class ReviewAdmin(admin.ModelAdmin):
     list_editable = ["admin_response"]
     date_hierarchy = "created_at"
 
+    @admin.display(description="Рейтинг")
     def rating_stars(self, obj):
         return "⭐️" * obj.rating
 
-    rating_stars.short_description = "Рейтинг"
-
+    @admin.display(description="Комментарий")
     def comment_preview(self, obj):
         if obj.comment:
             return obj.comment[:50] + "..." if len(obj.comment) > 50 else obj.comment
         return "-"
 
-    comment_preview.short_description = "Комментарий"
-
+    @admin.display(description="Ответ", boolean=True)
     def has_admin_response(self, obj):
         return bool(obj.admin_response)
-
-    has_admin_response.boolean = True
-    has_admin_response.short_description = "Ответ"
 
 
 @admin.register(Profile)
@@ -247,14 +239,13 @@ class ProfileAdmin(admin.ModelAdmin):
     list_display = ["user", "phone_number", "profile_picture_preview"]
     search_fields = ["user__username", "user__email", "phone_number"]
 
+    @admin.display(description="Аватар")
     def profile_picture_preview(self, obj):
         if obj.profile_picture:
             return format_html(
                 f'<img src="{obj.profile_picture.url}" width="50" height="50" style="object-fit: cover; border-radius: 50%;" />'
             )
         return "-"
-
-    profile_picture_preview.short_description = "Аватар"
 
 
 @admin.register(Wishlist)
@@ -264,10 +255,9 @@ class WishlistAdmin(admin.ModelAdmin):
     inlines = [WishlistItemInline]
     search_fields = ["user__username", "user__email"]
 
+    @admin.display(description="Количество товаров")
     def items_count(self, obj):
         return obj.wishlistitem_set.count()
-
-    items_count.short_description = "Количество товаров"
 
 
 @admin.register(WishlistItem)
@@ -286,15 +276,13 @@ class CartAdmin(admin.ModelAdmin):
     inlines = [CartItemInline]
     search_fields = ["user__username", "user__email"]
 
+    @admin.display(description="Товаров в корзине")
     def items_count(self, obj):
         return obj.items.count()
 
-    items_count.short_description = "Товаров в корзине"
-
+    @admin.display(description="Общая стоимость")
     def total_price_display(self, obj):
         return f"{obj.total_price} ₽"
-
-    total_price_display.short_description = "Общая стоимость"
 
 
 @admin.register(CartItem)
@@ -304,14 +292,14 @@ class CartItemAdmin(admin.ModelAdmin):
     raw_id_fields = ["cart", "product"]
     search_fields = ["cart__user__username", "product__name"]
 
+    @admin.display(description="Общая стоимость")
     def total_price_display(self, obj):
         return f"{obj.total_price} ₽"
-
-    total_price_display.short_description = "Общая стоимость"
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    actions = ["mark_as_processing", "mark_as_shipped", "mark_as_delivered", "generate_pdf"]
     list_display = ["order_number", "user", "status", "total_amount_display", "items_count", "created_at"]
     list_filter = ["status", "created_at"]
     list_editable = ["status"]
@@ -327,38 +315,52 @@ class OrderAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "created_at"
 
+    @admin.display(description="Общая сумма")
     def total_amount_display(self, obj):
         return f"{obj.total_amount} ₽"
 
-    total_amount_display.short_description = "Общая сумма"
-
+    @admin.display(description="Количество товаров")
     def items_count(self, obj):
         return obj.items.count()
 
-    items_count.short_description = "Товаров"
-
+    @admin.display(description="Пользователь")
     def user_info(self, obj):
         # url = reverse("admin:auth_user_change", args=[obj.user.id])
         return format_html(f'<a href="">{obj.user.username}</a> - {obj.user.email}')  # TO-DO: reverse
 
-    user_info.short_description = "Пользователь"
-
-    actions = ["mark_as_processing", "mark_as_shipped", "mark_as_delivered"]
-
+    @admin.action(description="Перевести в статус 'В обработке'")
     def mark_as_processing(self, request, queryset):
         queryset.update(status="processing")
 
-    mark_as_processing.short_description = "Перевести в статус 'В обработке'"
-
+    @admin.action(description="Перевести в статус 'Отправлен'")
     def mark_as_shipped(self, request, queryset):
         queryset.update(status="shipped")
 
-    mark_as_shipped.short_description = "Перевести в статус 'Отправлен'"
-
+    @admin.action(description="Перевести в статус 'Доставлен'")
     def mark_as_delivered(self, request, queryset):
         queryset.update(status="delivered")
 
-    mark_as_delivered.short_description = "Перевести в статус 'Доставлен'"
+    # PDF Task
+    change_form_template = "admin/order_change_form.html"
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_pdf_button"] = True
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    @admin.action(description="Сгенерировать PDF для выбранных заказов")
+    def generate_pdf(self, request, queryset):
+        """Генерация PDF для выбранных заказов"""
+        if queryset.count() != 1:
+            self.message_user(request, "Выберите ОДИН заказ для генерации PDF", level="ERROR")
+            return
+
+        # TO-DO
+        # for order in queryset:
+        #     return generate_order_pdf(request, order.id)
+
+        order = queryset.first()
+        return generate_order_pdf(request, order.id)
 
 
 @admin.register(OrderItem)

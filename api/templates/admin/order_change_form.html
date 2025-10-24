@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if show_pdf_button %}
+    <li>
+        <a href="{% url 'generate_order_pdf' original.pk %}" class="historylink">
+            📄 Сгенерировать PDF
+        </a>
+    </li>
+    {% endif %}
+{% endblock %}

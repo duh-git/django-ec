@@ -1,9 +1,12 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from api.views import generate_order_pdf
+
 
 urlpatterns = [
+    path("admin/orders/order/<int:order_id>/pdf/", generate_order_pdf, name="generate_order_pdf"),
     path("admin/", admin.site.urls),
 ]
 
