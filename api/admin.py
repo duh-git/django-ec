@@ -13,6 +13,7 @@ from .models import (
     Category,
     Brand,
     Tag,
+    ProductTagRelationship,
     Profile,
     Review,
     Wishlist,
@@ -37,6 +38,18 @@ class ProductImageInline(admin.TabularInline):
         return "-"
 
 
+class ProductTagRelationshipInline(admin.TabularInline):
+    model = ProductTagRelationship
+    extra = 1
+    raw_id_fields = ["tag", "added_by"]
+    readonly_fields = ["added_at"]
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "added_by":
+            kwargs["initial"] = request.user.id
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
@@ -46,7 +59,7 @@ class ProfileInline(admin.StackedInline):
 class ReviewInline(admin.TabularInline):
     model = Review
     extra = 0
-    readonly_fields = ["user", "rating", "created_at"]
+    readonly_fields = ["created_at"]
     can_delete = False
 
 
@@ -148,15 +161,16 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ["price", "stock", "is_available", "is_featured"]
     readonly_fields = ["created_at", "updated_at", "average_rating", "review_count"]
     prepopulated_fields = {"name": ()}
-    inlines = [ProductImageInline, ReviewInline]
+    inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline]
     fieldsets = (
-        ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
+        # ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
+        ("Основная информация", {"fields": ("name", "description", "category", "brand")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
         ("Отзывы", {"fields": ("average_rating", "review_count")}),
         ("Даты", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
-    filter_horizontal = ["tags"]
+    # filter_horizontal = ["tags"]
     date_hierarchy = "created_at"
 
     @admin.display(description="Рейтинг")
@@ -216,6 +230,15 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = ["name", "description"]
     prepopulated_fields = {"name": ()}
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(relationships_count=Count("producttagrelationship"))
+
+    @admin.display(description="Количество связей")
+    def products_count(self, obj):
+        count = obj.producttagrelationship_set.count()
+        url = reverse("admin:api_producttagrelationship_changelist") + "?" + urlencode({"tag__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} связей</a>')
+
     @admin.display(description="Цвет")
     def color_display(self, obj):
         return format_html(
@@ -233,6 +256,23 @@ class TagAdmin(admin.ModelAdmin):
         if obj.description:
             return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
         return "-"
+
+
+@admin.register(ProductTagRelationship)
+class ProductTagRelationshipAdmin(admin.ModelAdmin):
+    list_display = ["product", "tag", "weight", "added_by", "added_at", "is_auto_generated", "color_display"]
+    list_filter = ["weight", "is_auto_generated", "added_at", "tag"]
+    search_fields = ["product__name", "tag__name", "added_by__username"]
+    raw_id_fields = ["product", "tag", "added_by"]
+    list_editable = ["weight", "is_auto_generated"]
+    readonly_fields = ["added_at"]
+    date_hierarchy = "added_at"
+
+    @admin.display(description="Цвет тега")
+    def color_display(self, obj):
+        return format_html(
+            f'<div style="background-color: {obj.tag.color}; width: 20px; height: 20px; border-radius: 3px; border: 1px solid #ccc;"></div>'
+        )
 
 
 @admin.register(Profile)

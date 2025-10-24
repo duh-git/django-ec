@@ -51,7 +51,9 @@ class Product(models.Model):
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", verbose_name="Категория")
     brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name="products", verbose_name="Бренд")
-    tags = models.ManyToManyField(Tag, blank=True, related_name="products", verbose_name="Теги")
+    tags = models.ManyToManyField(
+        Tag, blank=True, related_name="products", through="ProductTagRelationship", verbose_name="Теги"
+    )
 
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name="Цена")
     stock = models.PositiveIntegerField(default=0, verbose_name="Количество")
@@ -98,6 +100,32 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Изображение {self.product} - {self.order}{f'(основное)' if self.is_primary else ''}"
+
+
+class ProductTagRelationship(models.Model):
+    """Промежуточная модель для связи Product и Tag с дополнительными данными"""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Продукт")
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, verbose_name="Тег")
+    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Добавил")
+    weight = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        verbose_name="Вес связи",
+        help_text="Насколько сильно тег связан с продуктом (1-10)",
+    )
+    is_auto_generated = models.BooleanField(default=False, verbose_name="Автоматически сгенерирован")
+    
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата добавления")
+
+    class Meta:
+        verbose_name = "Связь продукта и тега"
+        verbose_name_plural = "Связи продуктов и тегов"
+        unique_together = ("product", "tag")
+        ordering = ["-weight", "added_at"]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.tag.name} ({self.weight})"
 
 
 class Review(models.Model):

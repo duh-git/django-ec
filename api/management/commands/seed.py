@@ -9,8 +9,10 @@ from decimal import Decimal
 from api.models import (
     Category,
     Brand,
+    Tag,
     Product,
     ProductImage,
+    ProductTagRelationship,
     Review,
     Profile,
     Wishlist,
@@ -54,9 +56,11 @@ class Command(BaseCommand):
             with transaction.atomic():
                 categories = self.create_categories(fake)
                 brands = self.create_brands(fake)
+                tags = self.create_tags(fake)
                 users = self.create_users(fake, user_count)
                 products = self.create_products(fake, product_count, categories, brands)
                 self.create_product_images(fake, products)
+                self.create_product_tag_relationships(users, products, tags)
                 self.create_reviews(fake, users, products)
                 self.create_profiles(fake, users)
                 self.create_wishlists(users, products)
@@ -105,6 +109,53 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Создано {len(brands)} брендов"))
         return brands
+
+    def create_tags(self, fake):
+        """Создание тегов"""
+        tags = []
+        tag_names = set()
+        predefined_tags = [
+            {"name": "Новинка", "color": "#FF6B6B"},
+            {"name": "Популярный", "color": "#4ECDC4"},
+            {"name": "Со скидкой", "color": "#45B7D1"},
+            {"name": "Бестселлер", "color": "#FFA07A"},
+            {"name": "Экологичный", "color": "#98D8C8"},
+            {"name": "Премиум", "color": "#F7DC6F"},
+            {"name": "Эконом", "color": "#BB8FCE"},
+            {"name": "Ограниченная серия", "color": "#F1948A"},
+            {"name": "Сделано в России", "color": "#85C1E9"},
+            {"name": "Импортный", "color": "#F8C471"},
+            {"name": "Умный", "color": "#AED6F1"},
+            {"name": "Компактный", "color": "#D7BDE2"},
+            {"name": "Профессиональный", "color": "#F9E79F"},
+            {"name": "Для начинающих", "color": "#A9DFBF"},
+            {"name": "Подарочный", "color": "#F5B7B1"},
+        ]
+
+        for tag_data in predefined_tags:
+            tag = Tag.objects.create(
+                name=tag_data["name"],
+                color=tag_data["color"],
+                description=fake.text(100) if random.random() > 0.5 else None,
+            )
+            tags.append(tag)
+
+        for _ in range(15):
+            while True:
+                tag_name = fake.word().capitalize()
+                if tag_name not in tag_names:
+                    tag_names.add(tag_name)
+                    break
+
+            tag = Tag.objects.create(
+                name=tag_name,
+                color=fake.hex_color(),
+                description=fake.text(100) if random.random() > 0.5 else None,
+            )
+            tags.append(tag)
+
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(tags)} тегов"))
+        return tags
 
     def create_users(self, fake, user_count):
         """Создание пользователей"""
@@ -163,6 +214,29 @@ class Command(BaseCommand):
                 image_count += 1
 
         self.stdout.write(self.style.SUCCESS(f"Создано {image_count} изображений продуктов"))
+
+    def create_product_tag_relationships(self, users, products, tags):
+        """Создание связей между продуктами и тегами"""
+        relationships_count = 0
+
+        for product in products:
+            # Добавляем 0-6 тегов к каждому продукту
+            product_tags = random.sample(tags, min(random.randint(0, 6), len(tags)))
+
+            for tag in product_tags:
+                try:
+                    ProductTagRelationship.objects.create(
+                        product=product,
+                        tag=tag,
+                        added_by=random.choice(users) if random.random() > 0.5 else None,
+                        weight=random.randint(1, 10),
+                        is_auto_generated=random.random() > 0.3,
+                    )
+                    relationships_count += 1
+                except:
+                    pass
+
+        self.stdout.write(self.style.SUCCESS(f"Создано {relationships_count} связей продукт-тег"))
 
     def create_reviews(self, fake, users, products):
         """Создание отзывов"""
