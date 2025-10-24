@@ -33,11 +33,25 @@ class Brand(models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True, verbose_name="Тег")
+    color = models.CharField(max_length=7, default="#000000", verbose_name="Цвет")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание")
+
+    class Meta:
+        verbose_name = "Тег"
+        verbose_name_plural = "Теги"
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name="Продукт")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products", verbose_name="Категория")
     brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name="products", verbose_name="Бренд")
+    tags = models.ManyToManyField(Tag, blank=True, related_name="products", verbose_name="Теги")
 
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name="Цена")
     stock = models.PositiveIntegerField(default=0, verbose_name="Количество")
@@ -64,6 +78,7 @@ class Product(models.Model):
             models.Index(fields=["category", "is_available", "price"]),  # Для фильтрации по категориям
             models.Index(fields=["category", "brand", "is_available"]),  # Для поиска и сортировки
             models.Index(fields=["-created_at", "is_available"]),  # Для админки
+            models.Index(fields=["is_available"]),  # Для тегов
         ]
 
     def __str__(self):

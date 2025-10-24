@@ -10,6 +10,7 @@ from .utils import generate_order_pdf
 from .models import (
     Category,
     Brand,
+    Tag,
     Product,
     ProductImage,
     Review,
@@ -130,8 +131,8 @@ class CategoryAdmin(admin.ModelAdmin):
     @admin.display(description="Количество товаров")
     def products_count(self, obj):
         count = obj.products.count()
-        # url = reverse("admin:app_product_changelist") + "?" + urlencode({"category__id": f"{obj.id}"})
-        return format_html(f'<a href="">{count} товаров</a>')  # TO-DO: reverse
+        url = reverse("admin:api_product_changelist") + "?" + urlencode({"category__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} товаров</a>')
 
 
 @admin.register(Brand)
@@ -142,8 +143,8 @@ class BrandAdmin(admin.ModelAdmin):
     @admin.display(description="Количество товаров")
     def products_count(self, obj):
         count = obj.products.count()
-        # url = reverse("admin:app_product_changelist") + "?" + urlencode({"brand__id": f"{obj.id}"})
-        return format_html(f'<a href="">{count} товаров</a>')  # TO-DO: reverse
+        url = reverse("admin:api_product_changelist") + "?" + urlencode({"brand__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} товаров</a>')
 
 
 @admin.register(Product)
@@ -162,19 +163,20 @@ class ProductAdmin(admin.ModelAdmin):
         "created_at",
     ]
     list_display_links = ["name"]
-    list_filter = ["is_available", "is_featured", "category", "brand", "created_at", StockFilter]
-    search_fields = ["name", "description"]
+    list_filter = ["is_available", "is_featured", "category", "brand", "tags", "created_at", StockFilter]
+    search_fields = ["name", "description", "tags__name"]
     list_editable = ["price", "stock", "is_available", "is_featured"]
     readonly_fields = ["created_at", "updated_at", "average_rating", "review_count"]
     prepopulated_fields = {"name": ()}
     inlines = [ProductImageInline, ReviewInline]
     fieldsets = (
-        ("Основная информация", {"fields": ("name", "description", "category", "brand")}),
+        ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
         ("Отзывы", {"fields": ("average_rating", "review_count")}),
         ("Даты", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
+    filter_horizontal = ["tags"]
     date_hierarchy = "created_at"
 
     @admin.display(description="Рейтинг")
@@ -201,6 +203,32 @@ class ProductImageAdmin(admin.ModelAdmin):
         return "-"
 
 
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ["name", "color", "color_display", "products_count", "description_preview"]
+    list_editable = ["color"]
+    search_fields = ["name", "description"]
+    prepopulated_fields = {"name": ()}
+
+    @admin.display(description="Цвет")
+    def color_display(self, obj):
+        return format_html(
+            f'<div style="background-color: {obj.color}; width: 20px; height: 20px; border-radius: 3px; border: 1px solid #ccc;"></div>'
+        )
+
+    @admin.display(description="Количество товаров")
+    def products_count(self, obj):
+        count = obj.products.count()
+        url = reverse("admin:api_product_changelist") + "?" + urlencode({"tags__id": f"{obj.id}"})
+        return format_html(f'<a href="{url}">{count} товаров</a>')
+
+    @admin.display(description="Описание")
+    def description_preview(self, obj):
+        if obj.description:
+            return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
+        return "-"
+
+
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = [
@@ -213,7 +241,7 @@ class ReviewAdmin(admin.ModelAdmin):
         "has_admin_response",
     ]
     raw_id_fields = ["user", "product"]
-    list_filter = [RatingFilter, "created_at", "product__category"]
+    list_filter = [RatingFilter, "created_at", "product__tags", "product__category"]
     search_fields = ["product__name", "user__email", "comment"]
     readonly_fields = ["created_at", "updated_at"]
     list_editable = ["admin_response"]
@@ -263,7 +291,7 @@ class WishlistAdmin(admin.ModelAdmin):
 @admin.register(WishlistItem)
 class WishlistItemAdmin(admin.ModelAdmin):
     list_display = ["wishlist", "product", "added_at"]
-    list_filter = ["added_at", "product__category"]
+    list_filter = ["added_at", "product__tags", "product__category"]
     raw_id_fields = ["wishlist", "product"]
     search_fields = ["wishlist__user__username", "product__name"]
     readonly_fields = ["added_at"]
@@ -290,7 +318,7 @@ class CartItemAdmin(admin.ModelAdmin):
     list_display = ["cart", "product", "quantity", "total_price_display"]
     list_editable = ["quantity"]
     raw_id_fields = ["cart", "product"]
-    search_fields = ["cart__user__username", "product__name"]
+    search_fields = ["cart__user__username", "product__name", "product__tags__name"]
 
     @admin.display(description="Общая стоимость")
     def total_price_display(self, obj):
@@ -304,7 +332,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ["status", "created_at"]
     list_editable = ["status"]
     list_display_links = ["order_number"]
-    raw_id_fields = ["user"]  # TO-DO: Проблема связана с user_info
+    raw_id_fields = ["user"]
     search_fields = ["order_number", "user__email", "user__username"]
     readonly_fields = ["order_number", "created_at", "updated_at", "total_amount_display", "user_info"]
     inlines = [OrderItemInline]
@@ -325,8 +353,8 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.display(description="Пользователь")
     def user_info(self, obj):
-        # url = reverse("admin:auth_user_change", args=[obj.user.id])
-        return format_html(f'<a href="">{obj.user.username}</a> - {obj.user.email}')  # TO-DO: reverse
+        url = reverse("admin:auth_user_change", args=[obj.user.id])
+        return format_html(f'<a href="{url}">{obj.user.username}</a> - {obj.user.email}')
 
     @admin.action(description="Перевести в статус 'В обработке'")
     def mark_as_processing(self, request, queryset):
