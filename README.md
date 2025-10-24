@@ -1,11 +1,14 @@
 ## Развертывание проекта
+
+```shell
 python3 -m venv .venv
 .venv\Scripts\activate.bat      # Для Windows
 pip install -r requirements.txt
 python3 manage.py runserver
+```
 
-
-## Management command usage examples
+## Примеры использования management command
+```shell
 # Создать данные с настройками по умолчанию (50 продуктов, 20 пользователей)
 python manage.py seed
 
@@ -14,5 +17,6 @@ python manage.py seed --count=100 --users=30
 
 # Создать только 20 продуктов
 python manage.py seed --count=20
+```
 
-Пароль для созданных пользователей: user_password
+*Пароль для созданных пользователей:* `user_password`
