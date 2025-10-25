@@ -4,7 +4,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Avg
 from django.utils import timezone
 from uuid import uuid4
-from django.core.exceptions import ValidationError
 from django.urls import reverse
 from .managers import *
 
