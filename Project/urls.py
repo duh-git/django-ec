@@ -7,6 +7,7 @@ from api.views import generate_order_pdf
 
 urlpatterns = [
     path("admin/orders/order/<int:order_id>/pdf/", generate_order_pdf, name="generate_order_pdf"),
+    path("api/", include("api.urls")),
     path("admin/", admin.site.urls),
 ]
 
