@@ -39,6 +39,12 @@ class ProductImageInline(admin.TabularInline):
         return "-"
 
 
+class ProductFileInline(admin.TabularInline):
+    model = ProductFile
+    extra = 1
+    readonly_fields = ["downloads_count"]
+
+
 class ProductTagRelationshipInline(admin.TabularInline):
     model = ProductTagRelationship
     extra = 1
@@ -163,10 +169,10 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ["price", "stock", "is_available", "is_featured"]
     readonly_fields = ["created_at", "updated_at", "average_rating", "review_count"]
     prepopulated_fields = {"name": ()}
-    inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline]
+    inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline, ProductFileInline]
     fieldsets = (
         # ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
-        ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand", "productfile")}),
+        ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
         # ("Документы", {"fields": ("")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
