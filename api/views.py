@@ -1,20 +1,27 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.authtoken.models import Token  # Если используете TokenAuthentication
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth.models import User
-from django.db.models import Q, Count, Avg
+from django.contrib.auth import authenticate, login as auth_login
+from django.db.models import Q, F, Count, Avg
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from .models import *
 from .serializers import *
 from .utils import generate_order_pdf
+from .cache_utils import get_featured_products, get_categories_with_counts, clear_product_cache
 
 
 def generate_order_pdf_view(request, order_id):
     """Представление для вызова функции генерации pdf"""
-    order = get_object_or_404(Order, id=order_id)
-    return generate_order_pdf(order)
+    try:
+        order = Order.objects.get(id=order_id)
+        return generate_order_pdf(order)
+    except Order.DoesNotExist:
+        raise Http404("Заказ с указанным ID не существует")
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -103,7 +110,20 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Для не-админов показываем только доступные товары
         if not self.request.user.is_staff:
             queryset = queryset.filter(is_available=True)
+        queryset = queryset.select_related("category", "brand").prefetch_related("images")
         return queryset
+
+    @action(detail=False, methods=["get"])
+    def price_list(self, request):
+        """Возвращает список цен продуктов с использованием values()"""
+        products = Product.objects.filter(is_available=True).values("id", "name", "price", "category__name")
+        return Response(list(products))
+
+    @action(detail=False, methods=["get"])
+    def product_names(self, request):
+        """Возвращает список названий продуктов с использованием values_list()"""
+        names = Product.objects.filter(is_available=True).values_list("name", flat=True)
+        return Response(list(names))
 
     @action(detail=True, methods=["get"])
     def reviews(self, request, slug=None):
@@ -118,13 +138,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def featured(self, request):
-        featured_products = Product.objects.filter(is_featured=True, is_available=True)
-        page = self.paginate_queryset(featured_products)
-        if page is not None:
-            serializer = ProductListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = ProductListSerializer(featured_products, many=True)
-        return Response(serializer.data)
+        """Используем кешированные избранные товары"""
+        featured_products = get_featured_products()
+        return Response(featured_products)
 
     @action(detail=False, methods=["get"])
     def search(self, request):
@@ -148,6 +164,21 @@ class ProductViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = ProductListSerializer(products, many=True)
         return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """При создании товара очищаем кеш"""
+        product = serializer.save()
+        clear_product_cache()
+
+    def perform_update(self, serializer):
+        """При обновлении товара очищаем кеш"""
+        product = serializer.save()
+        clear_product_cache()
+
+    def perform_destroy(self, instance):
+        """При удалении товара очищаем кеш"""
+        instance.delete()
+        clear_product_cache()
 
 
 class ProductImageViewSet(viewsets.ModelViewSet):
@@ -178,8 +209,9 @@ class ProductFileViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def download(self, request, pk=None):
         product_file = self.get_object()
-        product_file.downloads_count += 1
+        product_file.downloads_count = F("downloads_count") + 1
         product_file.save()
+        product_file.refresh_from_db()
         return Response({"message": "Download counted", "downloads_count": product_file.downloads_count})
 
 
@@ -352,8 +384,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return Order.objects.all()
-        return Order.objects.filter(user=self.request.user)
+            return Order.objects.all().select_related("user").prefetch_related("items")
+        return Order.objects.filter(user=self.request.user).select_related("user").prefetch_related("items")
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -425,3 +457,50 @@ class UserViewSet(viewsets.ModelViewSet):
     def me(self, request):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    serializer = LoginSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.validated_data["user"]
+        token, created = Token.objects.get_or_create(user=user)
+
+        return Response(
+            {
+                "message": "Успешный вход в систему",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                },
+                "token": token.key,  # Если используете TokenAuthentication
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register(request):
+    serializer = RegisterSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        Profile.objects.get_or_create(user=user)
+        Cart.objects.get_or_create(user=user)
+        Wishlist.objects.get_or_create(user=user)
+
+        return Response(
+            {
+                "message": "Пользователь успешно зарегистрирован",
+                "user": {"id": user.id, "username": user.username, "email": user.email},
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from .models import *
 
 
@@ -353,3 +355,53 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         order.update_total_amount()
 
         return order
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, attrs):
+        username = attrs.get("username")
+        password = attrs.get("password")
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+            if user:
+                if user.is_active:
+                    attrs["user"] = user
+                    return attrs
+                else:
+                    raise serializers.ValidationError("Аккаунт отключен")
+            else:
+                raise serializers.ValidationError("Неверные учетные данные")
+        else:
+            raise serializers.ValidationError("Необходимо указать имя пользователя и пароль")
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "password", "password2", "first_name", "last_name"]
+        extra_kwargs = {
+            "first_name": {"required": False},
+            "last_name": {"required": False},
+            "email": {"required": True},
+        }
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password2"]:
+            raise serializers.ValidationError({"password": "Пароли не совпадают"})
+
+        if User.objects.filter(email=attrs["email"]).exists():
+            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует"})
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop("password2")
+        user = User.objects.create_user(**validated_data)
+        return user

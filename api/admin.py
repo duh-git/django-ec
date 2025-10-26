@@ -6,6 +6,7 @@ from django.db.models import Avg, Count
 from django.urls import reverse
 from django.utils.http import urlencode
 from .utils import generate_order_pdf
+from .cache_utils import clear_product_cache
 
 from .models import (
     Product,
@@ -171,10 +172,8 @@ class ProductAdmin(admin.ModelAdmin):
     prepopulated_fields = {"name": ()}
     inlines = [ProductImageInline, ProductTagRelationshipInline, ReviewInline, ProductFileInline]
     fieldsets = (
-        # ("Основная информация", {"fields": ("name", "description", "category", "brand", "tags")}),
         ("Основная информация", {"fields": ("name", "slug", "description", "category", "brand")}),
         ("Цена и наличие", {"fields": ("price", "stock", "warranty_months")}),
-        # ("Документы", {"fields": ("")}),
         ("Статусы", {"fields": ("is_available", "is_featured")}),
         ("Отзывы", {"fields": ("average_rating", "review_count")}),
         ("Даты", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
@@ -190,6 +189,16 @@ class ProductAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(avg_rating=Avg("reviews__rating"))
+
+    def save_model(self, request, obj, form, change):
+        """Очищаем кеш при сохранении товара в админке"""
+        super().save_model(request, obj, form, change)
+        clear_product_cache()
+
+    def delete_model(self, request, obj):
+        """Очищаем кеш при удалении товара в админке"""
+        super().delete_model(request, obj)
+        clear_product_cache()
 
 
 @admin.register(ProductImage)
