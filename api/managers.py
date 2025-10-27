@@ -66,3 +66,9 @@ class ReviewManager(models.Manager):
     def with_response(self):
         """Отзывы с ответами администратора"""
         return self.exclude(admin_response__isnull=True).exclude(admin_response="")
+
+
+class CategoryManager(models.Manager):
+    def main_categories(self):
+        """Основные категории (без родительских)"""
+        return self.filter(parent__isnull=True)

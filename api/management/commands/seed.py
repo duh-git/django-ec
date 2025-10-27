@@ -66,7 +66,7 @@ class Command(BaseCommand):
                 users = self.create_users(fake, user_count)
                 products = self.create_products(fake, product_count, categories, brands)
                 self.create_product_images(fake, products)
-                self.create_product_tag_relationships(users, products, tags)
+                # self.create_product_tag_relationships(users, products, tags)
                 self.create_reviews(fake, users, products)
                 self.create_profiles(fake, users)
                 self.create_wishlists(users, products)

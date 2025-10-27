@@ -14,6 +14,7 @@ class Category(models.Model):
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, blank=True, null=True, related_name="children", verbose_name="Подкатегория"
     )
+    objects = CategoryManager()
 
     def get_absolute_url(self):
         return reverse("products_by_category", kwargs={"category_slug": self.slug})
@@ -285,7 +286,6 @@ class CartItem(models.Model):
         return self.quantity * self.product.price
 
     def clean(self):
-        """Валидация на наличие продукта"""
         if self.quantity > self.product.stock:
             raise ValidationError("Недостаточно товара на складе")
 

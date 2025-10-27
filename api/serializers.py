@@ -28,13 +28,13 @@ class CategorySerializer(serializers.ModelSerializer):
 class BrandSerializer(serializers.ModelSerializer):
     products_count = serializers.SerializerMethodField()
 
+    def get_products_count(self, obj):
+        return obj.products.count()
+
     class Meta:
         model = Brand
         fields = ["id", "name", "slug", "official_website", "description", "products_count"]
         read_only_fields = ["id"]
-
-    def get_products_count(self, obj):
-        return obj.products.count()
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -111,11 +111,11 @@ class ProductTagRelationshipSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
+    primary_image = serializers.SerializerMethodField()
     brand_name = serializers.CharField(source="brand.name", read_only=True)
     brand_slug = serializers.CharField(source="brand.slug", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     category_slug = serializers.CharField(source="category.slug", read_only=True)
-    primary_image = serializers.SerializerMethodField()
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
 
@@ -237,9 +237,9 @@ class WishlistItemSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    product_image = serializers.SerializerMethodField()
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_price = serializers.DecimalField(source="product.price", read_only=True, max_digits=10, decimal_places=2)
-    product_image = serializers.SerializerMethodField()
     total_price = serializers.ReadOnlyField()
 
     class Meta:

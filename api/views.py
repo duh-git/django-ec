@@ -37,6 +37,17 @@ class CategoryViewSet(viewsets.ModelViewSet):
             return [IsAdminUser()]
         return [AllowAny()]
 
+    @action(detail=False, methods=["get"])
+    def main(self, request):
+        """Получение основных категорий (без родительских)"""
+        main_categories = Category.objects.main_categories()
+        page = self.paginate_queryset(main_categories)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(main_categories, many=True)
+        return Response(serializer.data)
+
     @action(detail=True, methods=["get"])
     def products(self, request, slug=None):
         category = self.get_object()
@@ -100,28 +111,49 @@ class ProductViewSet(viewsets.ModelViewSet):
             return ProductListSerializer
         return ProductDetailSerializer
 
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAdminUser()]
-        return [AllowAny()]
+    # def get_permissions(self):
+    #     if self.action in ["create", "update", "partial_update", "destroy"]:
+    #         return [IsAdminUser()]
+    #     return [AllowAny()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Для не-админов показываем только доступные товары
+
         if not self.request.user.is_staff:
             queryset = queryset.filter(is_available=True)
-        queryset = queryset.select_related("category", "brand").prefetch_related("images")
+
+        price_min = self.request.query_params.get("price_min")
+        price_max = self.request.query_params.get("price_max")
+
+        if price_min:
+            queryset = queryset.filter(price__gte=price_min)
+        if price_max:
+            queryset = queryset.filter(price__lte=price_max)
+
+        tags = self.request.query_params.get("tags")
+        if tags:
+            tag_ids = [int(tag_id) for tag_id in tags.split(",")]
+            queryset = queryset.filter(tags__id__in=tag_ids).distinct()
+
+        queryset = queryset.select_related("category", "brand").prefetch_related("images", "tags")
         return queryset
 
     @action(detail=False, methods=["get"])
+    def main_categories(self, request):
+        """Основные категории (без родительских)"""
+        categories = Category.objects.filter(parent__isnull=True)
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
     def price_list(self, request):
-        """Возвращает список цен продуктов с использованием values()"""
+        """Возвращает список цен продуктов"""
         products = Product.objects.filter(is_available=True).values("id", "name", "price", "category__name")
         return Response(list(products))
 
     @action(detail=False, methods=["get"])
     def product_names(self, request):
-        """Возвращает список названий продуктов с использованием values_list()"""
+        """Возвращает список названий продуктов"""
         names = Product.objects.filter(is_available=True).values_list("name", flat=True)
         return Response(list(names))
 
@@ -326,7 +358,7 @@ class WishlistItemViewSet(viewsets.ModelViewSet):
 
 class CartViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # Добавляем проверку авторизации
 
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
@@ -336,6 +368,10 @@ class CartViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def my_cart(self, request):
+        # Проверяем, что пользователь аутентифицирован
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+
         cart, created = Cart.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(cart)
         return Response(serializer.data)

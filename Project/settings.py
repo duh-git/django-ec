@@ -7,7 +7,7 @@ SECRET_KEY = "django-insecure-%3@qm19%rlsqslkb4#)j0#4tld%=xpb1ej^xsm*0i_54^@pz7=
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "192.168.0.4"]
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -80,10 +80,10 @@ TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -108,12 +108,12 @@ REST_FRAMEWORK = {
     # "PAGE_SIZE": 10,
 }
 
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 # APPEND_SLASH = False
-# CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",
+# ]
 # CSRF_TRUSTED_ORIGINS = [
 #     "http://localhost:5173",
 # ]
