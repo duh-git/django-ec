@@ -112,9 +112,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         return ProductDetailSerializer
 
     # def get_permissions(self):
-    #     if self.action in ["create", "update", "partial_update", "destroy"]:
-    #         return [IsAdminUser()]
-    #     return [AllowAny()]
+    # if self.action in ["create", "update", "partial_update", "destroy"]:
+    #     return [IsAdminUser()]
+    # return [AllowAny()]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -255,10 +255,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "rating", "updated_at"]
 
     def get_permissions(self):
-        if self.action in ["create"]:
-            return [IsAuthenticated()]
-        elif self.action in ["update", "partial_update", "destroy"]:
-            return [IsAuthenticated()]
+        # if self.action in ["create"]:
+        #     return [IsAuthenticated()]
+        # elif self.action in ["update", "partial_update", "destroy"]:
+        #     return [IsAuthenticated()]
         return [AllowAny()]
 
     def perform_create(self, serializer):

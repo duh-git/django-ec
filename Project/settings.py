@@ -7,7 +7,7 @@ SECRET_KEY = "django-insecure-%3@qm19%rlsqslkb4#)j0#4tld%=xpb1ej^xsm*0i_54^@pz7=
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "192.168.0.4"]
+ALLOWED_HOSTS = ["localhost"]
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -109,37 +109,3 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-# APPEND_SLASH = False
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",
-# ]
-# CSRF_TRUSTED_ORIGINS = [
-#     "http://localhost:5173",
-# ]
-
-# SESSION_COOKIE_SAMESITE = "Lax"
-# CSRF_COOKIE_SAMESITE = "Lax"
-
-# SESSION_COOKIE_HTTPONLY = True
-# CSRF_COOKIE_HTTPONLY = False
-# from datetime import timedelta
-
-# SIMPLE_JWT = {
-#     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
-#     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-# }
-
-
-# postgres
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": config("POSTGRES_DB", default="modelhub"),
-#         "USER": config("POSTGRES_USER", default="postgres"),
-#         "PASSWORD": config("POSTGRES_PASSWORD", default="password"),
-#         "HOST": config("POSTGRES_HOST", default="localhost"),
-#         "PORT": config("POSTGRES_PORT", default="5432"),
-#         "ATOMIC_REQUESTS": True,
-#     }
-# }

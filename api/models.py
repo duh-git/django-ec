@@ -129,9 +129,9 @@ class ProductFile(models.Model):
     )
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="files", verbose_name="Продукт")
+    name = models.CharField(max_length=255, verbose_name="Название файла")
     file = models.FileField(upload_to="product_files/%Y/%m/%d/", verbose_name="Файл")
     file_type = models.CharField(max_length=20, choices=FILE_TYPES, default="other", verbose_name="Тип файла")
-    name = models.CharField(max_length=255, verbose_name="Название файла")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     size = models.PositiveIntegerField(editable=False, verbose_name="Размер файла (байт)")
     downloads_count = models.PositiveIntegerField(default=0, verbose_name="Количество скачиваний")
